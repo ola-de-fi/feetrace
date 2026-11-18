@@ -1,0 +1,1584 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FeeTrace</title>
+    <meta
+      name="description"
+      content="Where do a token's fees actually go? Reverse-engineered from bytecode, state and real trades on Robinhood Chain and Elysium."
+    />
+    <meta property="og:title" content="FeeTrace" />
+    <meta
+      property="og:description"
+      content="Where do a token's fees actually go? Reverse-engineered from bytecode, state and real trades on Robinhood Chain and Elysium."
+    />
+    <meta property="og:image" content="/brand/feetrace-og.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@Feetracexyz" />
+    <meta name="twitter:title" content="FeeTrace" />
+    <meta
+      name="twitter:description"
+      content="Where do a token's fees actually go? Reverse-engineered from bytecode, state and real trades on Robinhood Chain and Elysium."
+    />
+    <meta name="twitter:image" content="/brand/feetrace-og.png" />
+    <meta name="theme-color" content="#f3f1ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121210" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/brand/feetrace-icon-512.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --paper: #f3f1ea;
+        --paper-2: #e9e6dc;
+        --ink: #161614;
+        --ink-2: #44423c;
+        --muted: #716e65;
+        --rule: #d5d1c4;
+        --rule-2: #b9b4a5;
+        --lime: #c3f53c;
+        --on-lime: #161614;
+        --hl: #c3f53c;
+        --red: #cc2b23;
+        --on-red: #fff;
+        --amber: #f0a31a;
+        --amber-text: #8a5700;
+        --blue: #2a5bd0;
+        --sk-creator: #c3f53c;
+        --sk-protocol: #7d95ff;
+        --sk-buyback: #b59bff;
+        --sk1: #c3f53c;
+        --sk2: #7d95ff;
+        --sk3: #b59bff;
+        --sk4: #f3b13a;
+        --sk5: #ff8fbd;
+        --sk6: #4fd3b5;
+        --sk7: #ff7a6e;
+        --band: 0.78;
+        --sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --paper: #121210;
+          --paper-2: #1b1b18;
+          --ink: #ebe8de;
+          --ink-2: #c4c1b6;
+          --muted: #8f8c82;
+          --rule: #2e2d29;
+          --rule-2: #4a4842;
+          --hl: rgba(195, 245, 60, 0.42);
+          --red: #ff5e54;
+          --on-red: #161614;
+          --amber: #f5b03a;
+          --amber-text: #f5b03a;
+          --blue: #7fa8ff;
+          --band: 0.84;
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --paper: #121210;
+        --paper-2: #1b1b18;
+        --ink: #ebe8de;
+        --ink-2: #c4c1b6;
+        --muted: #8f8c82;
+        --rule: #2e2d29;
+        --rule-2: #4a4842;
+        --hl: rgba(195, 245, 60, 0.42);
+        --red: #ff5e54;
+        --on-red: #161614;
+        --amber: #f5b03a;
+        --amber-text: #f5b03a;
+        --blue: #7fa8ff;
+        --band: 0.84;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 15px;
+        line-height: 1.45;
+        -webkit-font-smoothing: antialiased;
+        font-variant-numeric: tabular-nums;
+      }
+      a {
+        color: inherit;
+        text-decoration: underline;
+        text-decoration-color: var(--rule-2);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+      a:hover {
+        background: var(--lime);
+        color: var(--on-lime);
+        text-decoration-color: transparent;
+      }
+      .wrap {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+      /* Scale the whole layout up on larger screens. */
+      @media (min-width: 760px) {
+        .wrap { zoom: 1.12; }
+      }
+      @media (min-width: 1280px) {
+        .wrap { zoom: 1.22; }
+      }
+      .sr {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+      }
+
+      /* ---------- masthead ---------- */
+      .masthead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px 0 14px;
+        border-bottom: 1.5px solid var(--ink);
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 800;
+        font-stretch: 112%;
+        letter-spacing: -0.02em;
+        font-size: 19px;
+        text-decoration: none;
+      }
+      .logo:hover {
+        background: none;
+        color: inherit;
+      }
+      .logo svg {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        background: #0b0d10;
+        padding: 3px;
+      }
+      .chip {
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+      }
+      .chip i {
+        width: 8px;
+        height: 8px;
+        background: var(--lime);
+        box-shadow: 0 0 0 1px var(--ink);
+      }
+
+      /* ---------- hero ---------- */
+      .kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+      .kicker b {
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        background: var(--ink);
+        color: var(--paper);
+        padding: 3px 7px 2px;
+      }
+      .hero {
+        padding: 30px 0 26px;
+      }
+      .hero h1 {
+        font-size: clamp(26px, 4.6vw, 40px);
+        line-height: 1.06;
+        letter-spacing: -0.035em;
+        font-weight: 800;
+        font-stretch: 115%;
+        margin: 0 0 8px;
+      }
+      mark {
+        color: inherit;
+        background: linear-gradient(
+          transparent 56%,
+          var(--hl) 56%,
+          var(--hl) 92%,
+          transparent 92%
+        );
+        padding: 0 0.06em;
+      }
+      .hero p {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--muted);
+        margin: 0 0 18px;
+        max-width: 620px;
+      }
+      form {
+        display: flex;
+        max-width: 680px;
+        border: 1.5px solid var(--ink);
+        background: var(--paper);
+        transition: box-shadow 0.15s;
+      }
+      form:focus-within {
+        box-shadow: 5px 5px 0 var(--lime);
+      }
+      input {
+        flex: 1;
+        min-width: 0;
+        background: transparent;
+        border: 0;
+        outline: 0;
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 14px;
+        padding: 13px 14px;
+      }
+      input::placeholder {
+        color: var(--muted);
+      }
+      button {
+        cursor: pointer;
+        border: 0;
+        border-radius: 0;
+        font-weight: 700;
+        font-size: 14px;
+        letter-spacing: 0.01em;
+        padding: 0 22px;
+        background: var(--ink);
+        color: var(--paper);
+        font-family: var(--sans);
+        font-stretch: 108%;
+      }
+      #go:hover:not(:disabled) {
+        background: var(--lime);
+        color: var(--on-lime);
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: wait;
+      }
+
+      /* ---------- loading: receipt printing ---------- */
+      .addr a:hover {
+        color: var(--on-lime);
+      }
+      .loading {
+        display: none;
+        max-width: 680px;
+        margin: 4px 0 30px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        border-top: 1px dashed var(--rule-2);
+        padding-top: 10px;
+      }
+      .loading.on {
+        display: block;
+      }
+      .loading div {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 3px 0;
+        color: var(--muted);
+        opacity: 0.45;
+      }
+      .loading div i {
+        flex: 1;
+        border-bottom: 1px dotted var(--rule-2);
+        transform: translateY(-3px);
+      }
+      .loading div b {
+        font-weight: 600;
+        min-width: 36px;
+        text-align: right;
+      }
+      .loading div.done,
+      .loading div.cur {
+        opacity: 1;
+        color: var(--ink);
+      }
+      .loading div.done b::after {
+        content: "OK";
+      }
+      .loading div.cur b::after {
+        content: "▌";
+        animation: blink 0.9s steps(1) infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .error {
+        display: none;
+        max-width: 680px;
+        margin: 4px 0 28px;
+        padding: 10px 14px;
+        border: 1.5px solid var(--red);
+        border-left-width: 6px;
+        color: var(--ink);
+        font-size: 14px;
+      }
+      .error::before {
+        content: "ERROR";
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--red);
+        margin-right: 10px;
+      }
+
+      /* ---------- statement ---------- */
+      #report {
+        display: none;
+        counter-reset: sec;
+        padding-bottom: 8px;
+      }
+      .stmt {
+        border-top: 1.5px solid var(--ink);
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 18px;
+        justify-content: space-between;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 8px 0;
+        border-bottom: 1px dashed var(--rule-2);
+      }
+      .meta b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px 20px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 18px 0 16px;
+      }
+      .who {
+        min-width: 0;
+      }
+      .tname {
+        font-size: clamp(26px, 4.4vw, 36px);
+        line-height: 1.05;
+        font-weight: 800;
+        font-stretch: 112%;
+        letter-spacing: -0.03em;
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .tname span {
+        font-family: var(--mono);
+        font-stretch: 100%;
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 15px;
+        letter-spacing: 0;
+        margin-left: 10px;
+        vertical-align: 0.35em;
+      }
+      .addr {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 6px;
+        word-break: break-all;
+      }
+      .addr a {
+        color: var(--muted);
+      }
+      .verdict {
+        font-family: var(--mono);
+        font-weight: 600;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 7px 12px;
+        border: 3px double currentColor;
+        transform: rotate(-2deg);
+        white-space: nowrap;
+      }
+      .v-high {
+        color: var(--red);
+      }
+      .v-medium {
+        color: var(--amber-text);
+      }
+      .v-good {
+        color: var(--on-lime);
+        background: var(--lime);
+        border-color: var(--on-lime);
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        border-top: 1px solid var(--ink);
+        border-bottom: 1px solid var(--ink);
+        overflow: hidden;
+      }
+      .stat {
+        padding: 12px 14px 13px;
+        box-shadow:
+          -1px 0 0 var(--rule),
+          0 -1px 0 var(--rule);
+        min-width: 0;
+      }
+      .stat .k {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .stat .v {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin-top: 4px;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+      }
+      .stat .v.num {
+        font-size: 30px;
+        font-weight: 800;
+        font-stretch: 108%;
+        letter-spacing: -0.03em;
+        line-height: 1.05;
+      }
+      .stat .v small {
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0;
+        margin-left: 2px;
+      }
+      .stat .v.hex {
+        font-family: var(--mono);
+        font-size: 16px;
+        font-weight: 500;
+        letter-spacing: 0;
+        padding-top: 5px;
+      }
+      .stat .n {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+      .actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        padding: 12px 0 0;
+      }
+      .btn2 {
+        background: transparent;
+        color: var(--ink);
+        border: 1px solid var(--ink);
+        padding: 7px 12px;
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        text-decoration: none;
+        cursor: pointer;
+        line-height: 1.3;
+      }
+      .btn2:hover {
+        background: var(--lime);
+        color: var(--on-lime);
+        border-color: var(--on-lime);
+      }
+
+      /* ---------- sections ---------- */
+      .sec {
+        margin-top: 28px;
+      }
+      .sec > h2 {
+        counter-increment: sec;
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin: 0;
+        padding: 8px 0 0;
+        border-top: 1.5px solid var(--ink);
+        font-family: var(--mono);
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .sec > h2::before {
+        content: counter(sec, decimal-leading-zero);
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .sec .sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 4px 0 10px;
+      }
+      #map {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      #map svg {
+        display: block;
+        width: 100%;
+        min-width: 520px;
+        height: auto;
+      }
+      #map svg.narrow {
+        min-width: 0;
+      }
+      .sk.narrow .lbl {
+        font-size: 15px;
+      }
+      .sk.narrow .big {
+        font-size: 19px;
+      }
+      .sk.narrow .s {
+        font-size: 11.5px;
+      }
+      .sk .em {
+        fill: var(--ink);
+        font-weight: 600;
+      }
+      #map .empty {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--ink-2);
+        border: 1px dashed var(--rule-2);
+        padding: 12px 14px;
+        margin: 6px 0 0;
+      }
+      .sk .n {
+        fill: var(--ink);
+      }
+      .sk .nt {
+        stroke: var(--ink);
+        stroke-width: 1;
+      }
+      .sk .b {
+        fill-opacity: var(--band);
+      }
+      .sk .hb {
+        fill: var(--ink);
+        fill-opacity: 0.05;
+      }
+      .sk .hl {
+        stroke: var(--ink);
+        stroke-width: 1.4;
+        stroke-opacity: 0.38;
+      }
+      .sk .lbl {
+        fill: var(--ink);
+        font-family: var(--sans);
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .sk .big {
+        font-size: 22px;
+        font-weight: 800;
+        font-stretch: 110%;
+      }
+      .sk .pct {
+        font-family: var(--mono);
+        font-weight: 500;
+        fill: var(--ink-2);
+      }
+      .sk .s {
+        fill: var(--muted);
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      /* findings */
+      .flags {
+        border-top: 1px solid var(--rule);
+      }
+      .flag {
+        border-bottom: 1px solid var(--rule);
+      }
+      .flag summary {
+        list-style: none;
+        cursor: pointer;
+        display: grid;
+        grid-template-columns: 50px 1fr 16px;
+        gap: 12px;
+        align-items: start;
+        padding: 10px 0;
+      }
+      .flag summary::-webkit-details-marker {
+        display: none;
+      }
+      .flag summary:hover .t {
+        text-decoration: underline;
+        text-decoration-color: var(--rule-2);
+        text-underline-offset: 3px;
+      }
+      .flag summary::after {
+        content: "+";
+        font-family: var(--mono);
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.2;
+        text-align: right;
+      }
+      .flag[open] summary::after {
+        content: "−";
+      }
+      .lv {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-align: center;
+        padding: 2px 0;
+        margin-top: 1px;
+        border: 1px solid transparent;
+      }
+      .l-high .lv {
+        background: var(--red);
+        color: var(--on-red);
+      }
+      .l-medium .lv {
+        background: var(--amber);
+        color: #161614;
+      }
+      .l-low .lv {
+        color: var(--blue);
+        border-color: currentColor;
+      }
+      .l-good .lv {
+        background: var(--lime);
+        color: var(--on-lime);
+      }
+      .flag .t {
+        font-weight: 700;
+        font-size: 15px;
+        line-height: 1.3;
+      }
+      .flag .d {
+        color: var(--ink-2);
+        font-size: 13.5px;
+        margin-top: 2px;
+        line-height: 1.45;
+      }
+      .ev {
+        margin: 0 0 12px 62px;
+        padding: 6px 0 6px 12px;
+        border-left: 2px solid var(--rule-2);
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink-2);
+      }
+      .ev div {
+        padding: 1px 0;
+        word-break: break-all;
+      }
+      .sec > .none {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+
+      /* ledgers */
+      .tw {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th {
+        text-align: left;
+        font-family: var(--mono);
+        font-weight: 500;
+        color: var(--muted);
+        font-size: 10.5px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 6px 10px 6px 0;
+        border-bottom: 1px solid var(--ink);
+        white-space: nowrap;
+      }
+      td {
+        padding: 7px 10px 7px 0;
+        border-bottom: 1px dashed var(--rule-2);
+        vertical-align: top;
+      }
+      tr:last-child td {
+        border-bottom: 1px solid var(--rule);
+      }
+      .kv td:first-child {
+        width: 30%;
+        font-family: var(--mono);
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding-top: 9px;
+      }
+      td.mono {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        word-break: break-all;
+      }
+      td.r {
+        text-align: right;
+        white-space: nowrap;
+      }
+      th.r {
+        text-align: right;
+      }
+      td.fig {
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .tag {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        line-height: 1.4;
+        padding: 0 6px;
+        border: 1px solid var(--rule-2);
+        color: var(--muted);
+        margin: 3px 4px 0 0;
+        word-break: normal;
+      }
+      td.mono > a + .tag {
+        margin-left: 8px;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+        margin: 10px 0 0;
+      }
+      .mast-r {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .xlink,
+      .follow {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        text-decoration: none;
+        font-family: var(--mono);
+        color: var(--ink);
+      }
+      .xlink {
+        font-size: 11.5px;
+        border: 1.5px solid var(--ink);
+        padding: 5px 9px 4px;
+      }
+      .xlink svg,
+      .follow svg {
+        width: 13px;
+        height: 13px;
+        flex: none;
+      }
+      .xlink:hover,
+      .follow:hover {
+        background: var(--lime);
+        color: var(--on-lime);
+      }
+      .follow {
+        font-size: 12.5px;
+        margin-bottom: 8px;
+        padding: 2px 0;
+      }
+      .follow b {
+        font-weight: 600;
+      }
+      .follow svg {
+        align-self: flex-start;
+        margin-top: 3px;
+      }
+      .ca {
+        display: inline-flex; align-items: center; gap: 10px; max-width: 100%;
+        margin-top: 14px; padding: 6px 10px; cursor: pointer;
+        font-family: var(--mono); font-size: 12px; color: var(--ink);
+        background: transparent; border: 1.5px dashed var(--ink);
+      }
+      .ca b { background: var(--lime); color: var(--on-lime); padding: 1px 6px; font-weight: 600; }
+      .ca span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+      .ca em { font-style: normal; color: var(--muted); }
+      .ca:hover { border-style: solid; }
+      footer {
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 11px;
+        line-height: 1.6;
+        padding: 14px 0 32px;
+        margin-top: 30px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      @media (max-width: 560px) {
+        .masthead {
+          padding-top: 14px;
+        }
+        .chip {
+          display: none;
+        }
+        .xlink {
+          font-size: 11px;
+        }
+        .hero {
+          padding: 22px 0 20px;
+        }
+        form {
+          flex-direction: column;
+        }
+        button {
+          padding: 12px;
+        }
+        .stats {
+          grid-template-columns: 1fr 1fr;
+        }
+        .stat:last-child:nth-child(odd) {
+          grid-column: span 2;
+        }
+        .stat .v.num {
+          font-size: 26px;
+        }
+        .actions {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .btn2 {
+          font-size: 11px;
+          padding: 8px 2px;
+          text-align: center;
+          letter-spacing: 0;
+        }
+        .verdict {
+          transform: rotate(-1.5deg);
+        }
+        .kv tr,
+        .kv td {
+          display: block;
+          width: 100%;
+        }
+        .kv td:first-child {
+          width: 100%;
+          border-bottom: 0;
+          padding: 9px 0 0;
+        }
+        .kv td + td {
+          padding-top: 3px;
+        }
+        .kv tr:last-child td:first-child {
+          border-bottom: 0;
+        }
+        .ev {
+          margin-left: 0;
+        }
+        td.mono > a + .tag {
+          margin-left: 0;
+        }
+        .flag summary {
+          grid-template-columns: 44px 1fr 12px;
+          gap: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="masthead">
+        <a class="logo" href="/">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path
+              d="M4 8h10c4 0 6 3 8 8s4 8 8 8"
+              stroke="#c3f53c"
+              stroke-width="3"
+              stroke-linecap="round"
+            />
+            <path
+              d="M4 16h8c3 0 4 1 6 3"
+              stroke="#c3f53c88"
+              stroke-width="3"
+              stroke-linecap="round"
+            />
+            <path
+              d="M4 24h6"
+              stroke="#c3f53c44"
+              stroke-width="3"
+              stroke-linecap="round"
+            />
+          </svg>
+          FeeTrace
+        </a>
+        <div class="mast-r">
+          <span class="chip"><i></i>Robinhood Chain · Elysium</span>
+          <a class="xlink" href="https://x.com/Feetracexyz" target="_blank" rel="noopener" aria-label="FeeTrace on X"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>@Feetracexyz</span></a>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="kicker"><b>REA</b>Reverse Engineer Anything</div>
+        <h1>Reverse engineer any token.<br />Get the <mark>fee receipt</mark>.</h1>
+        <p>
+          FeeTrace applies REA to fees: it takes apart a token's bytecode,
+          launchpad hooks and live trades to show exactly who gets paid on
+          every buy and sell.
+        </p>
+        <form id="f">
+          <label class="sr" for="addr">Token address</label>
+          <input
+            id="addr"
+            placeholder="0x… token address"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="go">Trace fees</button>
+        </form>
+        <button type="button" class="ca" id="ca" data-ca="0x21ae6aee829029fdf15b2118c05bab8ec4be13f0" title="Copy contract address"><b>$TRACE</b><span>CA 0x21ae6aee829029fdf15b2118c05bab8ec4be13f0</span><em>copy</em></button>
+      </section>
+
+      <div class="loading" id="loading"></div>
+      <div class="error" id="error" role="alert"></div>
+
+      <section id="report"></section>
+
+      <footer>
+        <a class="follow" href="https://x.com/Feetracexyz" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span>Follow <b>@Feetracexyz</b> for new traces and launches →</span></a>
+        FeeTrace reads public on-chain data only. Findings are evidence, not
+        financial advice. Bytecode analysis can't always prove intent.
+      </footer>
+    </div>
+
+    <script>
+      const $ = (s) => document.querySelector(s);
+      let EXPLORER = "https://robinhoodchain.blockscout.com/address/";
+      let NATIVE = "ETH"; // native currency of the chain the current report is on
+      const short = (a) => (a ? a.slice(0, 6) + "…" + a.slice(-4) : "—");
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const num = (n, d = 2) =>
+        n == null
+          ? "—"
+          : n >= 1e9
+            ? (n / 1e9).toFixed(2) + "B"
+            : n >= 1e6
+              ? (n / 1e6).toFixed(2) + "M"
+              : n >= 1e3
+                ? (n / 1e3).toFixed(1) + "K"
+                : (+n).toFixed(d);
+      const link = (a, label) =>
+        `<a href="${EXPLORER}${esc(a)}" target="_blank" rel="noopener">${esc(label || a)}</a>`;
+
+      const STEPS = [
+        "Reading bytecode",
+        "Detecting proxies & launchpad hook",
+        "Reading fee config on-chain",
+        "Replaying recent trades",
+        "Tracing fee recipients",
+        "Scoring risk",
+      ];
+      let stepTimer;
+      function startLoading() {
+        const el = $("#loading");
+        el.innerHTML = STEPS.map(
+          (s) => `<div><span>${s}</span><i></i><b></b></div>`,
+        ).join("");
+        el.classList.add("on");
+        let i = 0;
+        const tick = () => {
+          [...el.children].forEach((d, j) => {
+            d.className = j < i ? "done" : j === i ? "cur" : "";
+          });
+          if (i < STEPS.length - 1) i++;
+        };
+        tick();
+        stepTimer = setInterval(tick, 2200);
+      }
+      function stopLoading() {
+        clearInterval(stepTimer);
+        $("#loading").classList.remove("on");
+      }
+
+      async function run(address) {
+        address = address.trim();
+        $("#addr").value = address;
+        $("#error").style.display = "none";
+        $("#report").style.display = "none";
+        $("#go").disabled = true;
+        history.replaceState(null, "", "/?a=" + address);
+        startLoading();
+        try {
+          const res = await fetch(
+            "/api/trace?address=" + encodeURIComponent(address),
+          );
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Trace failed");
+          render(data);
+        } catch (e) {
+          $("#error").textContent = e.message;
+          $("#error").style.display = "block";
+        } finally {
+          stopLoading();
+          $("#go").disabled = false;
+        }
+      }
+
+      $("#ca").addEventListener("click", () => {
+        navigator.clipboard.writeText($("#ca").dataset.ca);
+        $("#ca em").textContent = "copied ✓";
+        setTimeout(() => ($("#ca em").textContent = "copy"), 1500);
+      });
+      $("#f").addEventListener("submit", (e) => {
+        e.preventDefault();
+        run($("#addr").value);
+      });
+      const preset = new URLSearchParams(location.search).get("a");
+      if (preset) run(preset);
+
+      /* ---------- fee map (two-stage sankey) ---------- */
+      // Colours are CSS custom properties so the map follows the light/dark theme.
+      const COLORS = [
+        "var(--sk1)",
+        "var(--sk2)",
+        "var(--sk3)",
+        "var(--sk4)",
+        "var(--sk5)",
+        "var(--sk6)",
+        "var(--sk7)",
+      ];
+
+      function band(x1, y1, x2, y2, h1, h2, fill, cls = "b") {
+        const mx = (x1 + x2) / 2;
+        return `<path class="${cls}" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2} L${x2},${y2 + h2} C${mx},${y2 + h2} ${mx},${y1 + h1} ${x1},${y1 + h1} Z" style="fill:${fill}"/>`;
+      }
+
+      // Phones get a narrower, taller-type layout so every label stays readable
+      // without sideways scrolling; wider screens get the full 960-unit map.
+      const NARROW = matchMedia("(max-width: 560px)");
+
+      function feeMap(source, mid, targets) {
+        // source -> mid (fee), mid -> targets (by share)
+        const n = NARROW.matches;
+        const W = n ? 400 : 960,
+          top = n ? 46 : 22,
+          pad = 22,
+          H = Math.max(n ? 270 : 250, targets.length * (n ? 82 : 72) + top + pad);
+        const nodeW = n ? 8 : 10,
+          total = H - top - pad;
+        let svg = `<svg class="sk${n ? " narrow" : ""}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Fee map"><defs><pattern id="sk-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hb" width="7" height="7"/><line class="hl" x1="0" y1="0" x2="0" y2="7"/></pattern></defs>`;
+        const sx = n ? 0 : 180,
+          mx = n ? 150 : 440,
+          tx = n ? 240 : 668,
+          lx = tx + (n ? 16 : 24);
+        // source
+        svg += `<rect class="n" x="${sx}" y="${top}" width="${nodeW}" height="${total}"/>`;
+        if (n) {
+          svg += `<text class="lbl" x="0" y="15">${esc(source.label)}</text>`;
+          svg += `<text class="s" x="0" y="32">${esc(source.sub)}</text>`;
+        } else {
+          svg += `<text class="lbl" x="${sx - 14}" y="${top + total / 2 - 4}" text-anchor="end">${esc(source.label)}</text>`;
+          svg += `<text class="s" x="${sx - 14}" y="${top + total / 2 + 16}" text-anchor="end">${esc(source.sub)}</text>`;
+        }
+        // mid (fee) node: height proportional to fee but at least 45% so the split is readable
+        const midH = Math.max(
+          total * 0.45,
+          total * Math.min(1, mid.fraction * 8),
+        );
+        const midY = top + (total - midH) / 2;
+        const keepH = total - midH;
+        svg += band(
+          sx + nodeW,
+          top + keepH / 2,
+          mx,
+          midY,
+          midH,
+          midH,
+          "url(#sk-hatch)",
+          "fee",
+        );
+        svg += `<rect class="n" x="${mx}" y="${midY}" width="${nodeW}" height="${midH}"/>`;
+        // fee label sits right-aligned over the hatched band so outgoing bands never cover it
+        svg += `<text class="lbl big" x="${mx + nodeW}" y="${midY - 12}" text-anchor="end">${esc(mid.label)}</text>`;
+        svg += `<text class="s" x="${mx + nodeW}" y="${midY + midH + 20}" text-anchor="end">${esc(mid.sub)}</text>`;
+        // targets
+        const gap = 14;
+        const avail = total - gap * (targets.length - 1);
+        const sum = targets.reduce((s, t) => s + t.value, 0) || 1;
+        let ty = top,
+          my = midY,
+          labelFloor = 0; // bottom of the previous label block, to stop overlaps
+        targets.forEach((t, i) => {
+          const h = Math.max(18, avail * (t.value / sum));
+          const mh = midH * (t.value / sum);
+          const c = t.color || COLORS[i % COLORS.length];
+          svg += band(mx + nodeW, my, tx, ty, mh, h, c);
+          svg += `<rect class="nt" x="${tx}" y="${ty}" width="${nodeW}" height="${h}" style="fill:${c}"/>`;
+          // phones: name / share / kind / address (if the name isn't the address)
+          const [addr, kind] = String(t.sub).split(" · ");
+          const lines = n
+            ? [t.pct]
+                .concat(kind ? [kind] : [])
+                .concat(addr && addr !== t.label ? [addr] : [])
+            : [t.sub];
+          const lh = n ? 14 : 19;
+          const blockH = 17 + lines.length * lh;
+          let y0 = ty + h / 2 - blockH / 2 + 14;
+          if (y0 - 14 < labelFloor) y0 = labelFloor + 14;
+          labelFloor = y0 - 14 + blockH + 4;
+          svg += n
+            ? `<text class="lbl" x="${lx}" y="${y0}">${esc(t.label)}</text>`
+            : `<text class="lbl" x="${lx}" y="${y0}">${esc(t.label)} <tspan class="pct">${esc(t.pct)}</tspan></text>`;
+          lines.forEach((l, j) => {
+            svg += `<text class="s${n && !j ? " em" : ""}" x="${lx}" y="${y0 + (n ? 16 : 19) + j * lh}">${esc(l)}</text>`;
+          });
+          ty += h + gap;
+          my += mh;
+        });
+        const fullH = Math.ceil(Math.max(H, labelFloor + 6));
+        return (
+          svg.replace(`viewBox="0 0 ${W} ${H}"`, `viewBox="0 0 ${W} ${fullH}"`) +
+          "</svg>"
+        );
+      }
+
+      // Re-layout the map when crossing the phone breakpoint.
+      let lastMap = null;
+      NARROW.addEventListener?.("change", () => {
+        if (lastMap && $("#map")) $("#map").innerHTML = mapFor(...lastMap);
+      });
+
+      /* ---------- render ---------- */
+      const sec = (title, sub, body) =>
+        `<section class="sec"><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ""}${body}</section>`;
+
+      function render(r) {
+        EXPLORER = r.chain?.explorer || EXPLORER;
+        NATIVE = r.chain?.native || "ETH";
+        const cv = r.curve && !r.curve.graduated ? r.curve : null;
+        const lp =
+          cv ||
+          (r.launchpad && (r.launchpad.hook || r.launchpad.split)
+            ? r.launchpad
+            : null);
+        const sym = r.token.symbol || "TOKEN";
+        const highs = r.flags.filter((f) => f.level === "high").length;
+        const meds = r.flags.filter((f) => f.level === "medium").length;
+        const verdict = highs
+          ? ["v-high", `${highs} high-risk finding${highs > 1 ? "s" : ""}`]
+          : meds
+            ? ["v-medium", `${meds} thing${meds > 1 ? "s" : ""} to watch`]
+            : ["v-good", "No major fee risks found"];
+        const when = new Date(r.generatedAt || Date.now());
+        const stage = cv
+          ? "Bonding curve"
+          : lp
+            ? lp.hook
+              ? "V4 launchpad hook"
+              : "V4 pool, no hook"
+            : r.recipients.length || r.swapback.detected
+              ? "Tax token"
+              : "Plain token";
+
+        let html = `<div class="stmt">
+    <div class="meta"><span>Fee statement · <b>${esc(stage)}</b></span><span>${esc(r.chain?.name || "Robinhood Chain")} · ${esc(when.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }))}</span></div>
+    <div class="top">
+      <div class="who">
+        <h1 class="tname">${esc(r.token.name || "Unknown token")}<span>$${esc(sym)}</span></h1>
+        <div class="addr">${link(r.address)}</div>
+      </div>
+      <div class="verdict ${verdict[0]}">${verdict[1]}</div>
+    </div>
+    <div class="stats">${stats(r, lp)}</div>
+    <div class="actions">
+      <button class="btn2" id="copy">Copy share link</button>
+      <a class="btn2" target="_blank" rel="noopener" href="${tweetUrl(r, lp)}">Share on X ↗</a>
+      <button class="btn2" id="dl">Download JSON</button>
+    </div>
+  </div>`;
+
+        html += sec(
+          "Fee map",
+          cv
+            ? "Decoded from the token's bonding-curve contract (pre-graduation)."
+            : lp
+              ? lp.hook
+                ? "Decoded from the launchpad hook's on-chain fee policy for this pool."
+                : "Read from the pool's own fee setting and its launch liquidity position."
+              : "Reconstructed from recent transfers: third-party cuts taken during trades.",
+          `<div id="map">${mapFor(r, lp)}</div>`,
+        );
+
+        html += sec(
+          "Findings",
+          "Click a finding for evidence.",
+          r.flags.length
+            ? `<div class="flags">${r.flags.map(flagHtml).join("")}</div>`
+            : '<p class="none">No findings.</p>',
+        );
+
+        if (cv) html += curveCard(cv);
+        else if (lp) html += launchpadCard(lp, sym);
+        if (r.recipients.length) html += recipientsCard(r, sym);
+        if (r.swapback.detected) html += swapbackCard(r);
+        html += techCard(r);
+
+        lastMap = [r, lp];
+        $("#report").innerHTML = html;
+        $("#report").style.display = "block";
+        $("#copy").onclick = () => {
+          navigator.clipboard.writeText(location.origin + "/?a=" + r.address);
+          $("#copy").textContent = "Copied ✓";
+        };
+        $("#dl").onclick = () => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(
+            new Blob([JSON.stringify(r, null, 2)], {
+              type: "application/json",
+            }),
+          );
+          a.download = `feetrace-${sym}-${r.address.slice(0, 8)}.json`;
+          a.click();
+        };
+        $("#report").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function stats(r, lp) {
+        const s = [];
+        if (lp?.split) {
+          s.push(
+            lp.stage === "curve"
+              ? ["Total cut", lp.split.feePct + "%", `${lp.split.swapFeePct}% fee + ${lp.split.creatorTaxPct}% creator tax`]
+              : lp.split.buyPct != null
+                ? ["Trading tax", `${lp.split.buyPct}% / ${lp.split.sellPct}%`, "buy / sell, taken by the hook"]
+                : ["Swap fee", lp.split.feePct + "%", "on every buy & sell"],
+          );
+          const o = lp.split.parts.find((p) => p.role === "LP owner");
+          if (o)
+            s.push([
+              "Fee goes to",
+              "LP owner",
+              lp.position?.burned
+                ? "launch position closed"
+                : o.wallet?.address
+                  ? short(o.wallet.address)
+                  : "liquidity position",
+            ]);
+          if (lp.taxTotals)
+            s.push([
+              "Tax collected",
+              num(lp.taxTotals.collected, 4) + " " + NATIVE,
+              `${num(lp.taxTotals.toCreator, 4)} to creator · ${num(lp.taxTotals.toPlatform, 4)} to platform`,
+            ]);
+          const c = lp.split.parts.find((p) => p.role === "Creator");
+          if (c)
+            s.push([
+              "Creator gets",
+              c.ofTradePct.toFixed(2) + "%",
+              `${c.sharePct}% of the fee`,
+            ]);
+          const p = lp.split.parts.find((p) => p.role === "Protocol");
+          if (p)
+            s.push([
+              "Protocol gets",
+              p.ofTradePct.toFixed(2) + "%",
+              `${p.sharePct}% of the fee`,
+            ]);
+          if (lp.stage === "curve" && lp.progress)
+            s.push([
+              "Graduation",
+              lp.progress.pct + "%",
+              `${lp.progress.raised.toFixed(2)} / ${lp.progress.threshold} ${NATIVE} on curve`,
+            ]);
+          else if (lp.pending?.creatorTax)
+            s.push([
+              "Unclaimed creator fees",
+              num(lp.pending.creatorTax.quote, 3) + " " + NATIVE,
+              `+ ${num(lp.pending.creatorTax.token)} ${r.token.symbol || ""}`,
+            ]);
+        } else {
+          s.push([
+            "Buy tax (observed)",
+            r.observed.buy.medianFeePct == null
+              ? "—"
+              : r.observed.buy.medianFeePct + "%",
+            `${r.observed.buy.count} buys sampled`,
+          ]);
+          s.push([
+            "Sell tax (observed)",
+            r.observed.sell.medianFeePct == null
+              ? "—"
+              : r.observed.sell.medianFeePct + "%",
+            `${r.observed.sell.count} sells sampled`,
+          ]);
+          s.push([
+            "Fee recipients",
+            r.recipients.length,
+            "repeat third-party cuts",
+          ]);
+        }
+        s.push([
+          "Owner",
+          r.owner.renounced
+            ? "Renounced"
+            : r.owner.address
+              ? short(r.owner.address)
+              : lp
+                ? lp.hook
+                  ? "None (launchpad)"
+                  : "None found"
+                : "None found",
+          r.proxy
+            ? /1167/.test(r.proxy.kind)
+              ? "Fixed clone, not upgradeable"
+              : "Upgradeable proxy"
+            : "Not upgradeable",
+        ]);
+        return s
+          .map(([k, v, n]) => {
+            const t = String(v);
+            const cls = /^0x/.test(t) ? "hex" : /^[\d—~.]/.test(t) ? "num" : "";
+            // big figure, smaller unit (e.g. "0.005" + " ETH")
+            const m = cls === "num" && t.match(/^([\d.,—~]+%?)(\s.+)?$/);
+            const val = m && m[2] ? `${esc(m[1])}<small>${esc(m[2])}</small>` : esc(v);
+            return `<div class="stat"><div class="k">${esc(k)}</div><div class="v ${cls}">${val}</div><div class="n">${esc(n)}</div></div>`;
+          })
+          .join("");
+      }
+
+      const kindShort = (k = "") =>
+        /clone/i.test(k)
+          ? "clone contract"
+          : /Safe/.test(k)
+            ? "multisig"
+            : /EOA/.test(k)
+              ? "personal wallet"
+              : /proxy/i.test(k)
+                ? "proxy"
+                : k.toLowerCase();
+
+      function mapFor(r, lp) {
+        const sym = "$" + (r.token.symbol || "TOKEN");
+        if (lp?.split?.parts.length) {
+          const targets = lp.split.parts.map((p) => ({
+            label: p.role,
+            pct: p.sharePct + "%",
+            value: p.sharePct,
+            sub: p.wallet?.address && !/^0x0+$/.test(p.wallet.address)
+              ? `${short(p.wallet.address)} · ${kindShort(p.wallet.kind)}`
+              : lp.position?.burned
+                ? "launch position closed"
+                : "unknown",
+            color:
+              p.role === "Creator" ? "var(--sk-creator)" : "var(--sk-protocol)",
+          }));
+          if (lp.split.buyback?.enabled)
+            targets.push({
+              label: "Buyback",
+              pct: lp.split.buyback.configuredPct + "%",
+              value: lp.split.buyback.configuredPct,
+              sub: short(lp.split.buyback.vault),
+              color: "var(--sk-buyback)",
+            });
+          return feeMap(
+            { label: `${sym} trade`, sub: "every buy & sell" },
+            {
+              label: `${lp.split.feePct}% fee`,
+              sub: lp.stage === "curve" ? "taken by curve" : lp.hook ? "taken by hook" : "pool fee",
+              fraction: lp.split.feePct / 100,
+            },
+            targets,
+          );
+        }
+        if (r.recipients.length) {
+          const worst = Math.max(
+            r.observed.buy.medianFeePct || 0,
+            r.observed.sell.medianFeePct || 0,
+          );
+          return feeMap(
+            { label: `${sym} trades`, sub: `${r.observed.txs} txs sampled` },
+            {
+              label: worst ? `~${worst}% tax` : "fees",
+              sub: "cut from transfers",
+              fraction: worst / 100,
+            },
+            r.recipients
+              .slice(0, 6)
+              .map((x) => ({
+                label: x.label ? x.label.split(" (")[0] : short(x.address),
+                pct: x.share + "%",
+                value: x.share,
+                sub: `${short(x.address)} · ${x.isContract ? "contract" : "personal wallet"}`,
+              })),
+          );
+        }
+        return `<p class="empty">No fee flows detected in ${esc(r.observed.transfers)} recent transfers. This token doesn't appear to take a cut on trades.</p>`;
+      }
+
+      const LEVEL = { high: "HIGH", medium: "MED", low: "LOW", good: "OK" };
+      function flagHtml(f) {
+        return `<details class="flag l-${esc(f.level)}"><summary><span class="lv">${esc(LEVEL[f.level] || f.level)}</span><div><div class="t">${esc(f.title)}</div><div class="d">${esc(f.detail)}</div></div></summary>${f.evidence?.length ? `<div class="ev">${f.evidence.map((e) => `<div>${esc(e)}</div>`).join("")}</div>` : ""}</details>`;
+      }
+
+      function walletRow(role, w, extra = "") {
+        if (!w?.address) return "";
+        return `<tr><td>${esc(role)}</td><td class="mono">${link(w.address)}<span class="tag">${esc(w.kind)}</span>${extra}</td></tr>`;
+      }
+
+      function curveCard(c) {
+        const cr = c.split.parts.find((p) => p.role === "Creator");
+        const pr = c.split.parts.find((p) => p.role === "Protocol");
+        return sec(
+          "Bonding curve",
+          `This token hasn't graduated yet. It trades on its own curve contract until ${c.progress ? esc(c.progress.threshold) + " " + NATIVE : "the threshold"} is raised, then moves to a Uniswap V4 pool.`,
+          `<table class="kv">
+    ${walletRow("Creator fee wallet", cr?.wallet)}
+    ${walletRow("Protocol fee wallet", pr?.wallet)}
+    ${walletRow("Curve contract", { address: c.curve, kind: "bonding-curve market" })}
+    ${c.escrow?.address ? walletRow("Fee escrow", c.escrow) : ""}
+    <tr><td>Fee breakdown</td><td class="mono">${esc(c.split.swapFeePct)}% swap fee (${pr ? pr.ofTradePct.toFixed(2) : "?"}% to protocol) + ${esc(c.split.creatorTaxPct)}% creator tax</td></tr>
+    ${c.snipeTax ? `<tr><td>Snipe tax</td><td class="mono">${esc(c.snipeTax.startPct)}% at launch, decays to 0 over ${esc(c.snipeTax.seconds)}s</td></tr>` : ""}
+    ${c.progress ? `<tr><td>Graduation</td><td class="mono">${c.progress.raised.toFixed(4)} / ${esc(c.progress.threshold)} ${NATIVE} (${esc(c.progress.pct)}%)</td></tr>` : ""}
+    <tr><td>Unswept fees</td><td class="mono">${num(c.pending.creatorTax, 4)} ${NATIVE} creator tax · ${num(c.pending.protocolFees, 4)} ${NATIVE} fees</td></tr>
+    ${c.launchedAt ? `<tr><td>Launched</td><td class="mono">${esc(new Date(c.launchedAt).toLocaleString())}</td></tr>` : ""}
+  </table>`,
+        );
+      }
+
+      function launchpadCard(lp, sym) {
+        const c = lp.split?.parts.find((p) => p.role === "Creator");
+        const p = lp.split?.parts.find((p) => p.role === "Protocol");
+        const pos = lp.position;
+        const sub = !lp.hook
+          ? "Plain Uniswap V4 pool with no fee hook. Trading fees go to whoever owns the liquidity."
+          : lp.launchpad === "tax hook"
+            ? "Uniswap V4 pool with a tax hook. The hook takes a cut of each trade and splits it between the platform and the creator."
+            : `Uniswap V4 pool with a fee hook. ${lp.collections ? `${lp.collections.count.toLocaleString()} fee collections in the last ~10M blocks.` : ""}`;
+        const pend = lp.pending;
+        return sec(
+          "Launchpad",
+          sub,
+          `<table class="kv">
+    ${walletRow("Creator fee wallet", c?.wallet, c?.wallet?.implementation ? `<span class="tag">impl ${esc(short(c.wallet.implementation))}</span>` : "")}
+    ${walletRow("Protocol fee wallet", p?.wallet)}
+    ${lp.hook ? walletRow("Hook (fee taker)", { address: lp.hook.address, kind: "V4 hook contract" }) : ""}
+    ${lp.hook ? walletRow("Hook owner", lp.hook.owner) : ""}
+    ${lp.hook?.escrow?.address ? walletRow("Fee escrow", lp.hook.escrow, `<span class="tag">${num(lp.hook.escrow.balanceEth)} ${NATIVE} held (all pools)</span>`) : ""}
+    ${lp.launchedBy ? walletRow("Launched by", { address: lp.launchedBy, kind: "deployer tx sender" }) : ""}
+    ${pos ? (pos.burned ? `<tr><td>Launch LP position</td><td class="mono">#${esc(pos.tokenId)}<span class="tag">closed</span></td></tr>` : walletRow("Launch LP owner", pos.owner, `<span class="tag">position #${esc(pos.tokenId)}</span>`)) : ""}
+    ${lp.liquidity != null && !lp.hook ? `<tr><td>Liquidity at current price</td><td class="mono">${lp.liquidity === "0" ? "none" : "present"}</td></tr>` : ""}
+    ${lp.taxTotals ? `<tr><td>Tax collected</td><td class="mono">${num(lp.taxTotals.collected, 4)} ${NATIVE} · ${num(lp.taxTotals.toCreator, 4)} to creator · ${num(lp.taxTotals.toPlatform, 4)} to platform</td></tr>` : ""}
+    ${pend?.observedProtocolSharePct !== undefined ? `<tr><td>Unclaimed fees</td><td class="mono">${num(pend.creatorTax.quote, 4)} ${NATIVE} creator · ${num(pend.poolFees.quote, 4)} ${NATIVE} protocol</td></tr>` : pend ? `<tr><td>Unclaimed pool fees</td><td class="mono">${num(pend.poolFees.quote, 4)} ${NATIVE} + ${num(pend.poolFees.token)} $${esc(sym)}</td></tr>` : ""}
+    <tr><td>Pool ID</td><td class="mono">${esc(lp.pool.poolId)}</td></tr>
+  </table>`,
+        );
+      }
+
+      function recipientsCard(r, sym) {
+        return sec(
+          "Fee recipients",
+          "Addresses that repeatedly received a cut during trades (≥3 txs, ≥2 different senders).",
+          `<div class="tw"><table><tr><th>Recipient</th><th class="r">Share</th><th class="r">Typical cut</th><th class="r">Seen</th></tr>
+  ${r.recipients.map((x) => `<tr><td class="mono">${link(x.address)}<br>${x.label ? `<span class="tag">${esc(x.label)}</span>` : ""}<span class="tag">${x.isContract ? "contract" : "personal wallet"}</span></td><td class="r fig">${esc(x.share)}%</td><td class="r">${esc(x.medianRatePct)}%</td><td class="r">${esc(x.txCount)} txs</td></tr>`).join("")}
+  </table></div>`,
+        );
+      }
+
+      function swapbackCard(r) {
+        const e = r.swapback.eth;
+        return sec(
+          "Swapback",
+          `The token contract sold its accumulated fees into the pool ${esc(r.swapback.count)} times in the sample.`,
+          e?.destinations?.length
+            ? `<div class="tw"><table><tr><th>${NATIVE} sent to</th><th class="r">Sampled</th></tr>${e.destinations.map((d) => `<tr><td class="mono">${link(d.address)}<br>${d.label ? `<span class="tag">${esc(d.label)}</span>` : ""}<span class="tag">${d.isContract ? "contract" : "personal wallet"}</span></td><td class="r fig">${d.eth.toFixed(4)} ETH</td></tr>`).join("")}</table></div>`
+            : `<p class="note">${e && !e.supported ? `The public RPC does not expose call traces, so the final ${NATIVE} destination is read from the fee-wallet getters instead.` : `No ${NATIVE} destinations captured.`}</p>`,
+        );
+      }
+
+      function techCard(r) {
+        const getters = Object.entries(r.getters || {});
+        return sec(
+          "Under the hood",
+          "",
+          `<table class="kv">
+    <tr><td>Proxy</td><td class="mono">${r.proxy ? `${esc(r.proxy.kind)} → ${link(r.proxy.implementation)}` : "none"}</td></tr>
+    <tr><td>Fee controls in bytecode</td><td class="mono">${r.controls.map((c) => esc(c.signature)).join("<br>") || "none found"}</td></tr>
+    ${getters.length ? `<tr><td>On-chain values</td><td class="mono">${getters.map(([k, g]) => `${esc(k)} = ${g.type === "address" ? link(g.value, short(g.value)) : esc(g.value)}`).join("<br>")}</td></tr>` : ""}
+    <tr><td>Sample</td><td class="mono">${esc(r.observed.transfers)} transfers · ${esc(r.observed.txs)} txs · blocks ${esc(r.observed.fromBlock)}–${esc(r.observed.toBlock)}</td></tr>
+  </table>
+  <p class="note">FeeTrace extracts function selectors from bytecode, reads public getters and launchpad config, and replays recent Transfer events to find repeated third-party cuts. Presence of a function doesn't prove it's callable by anyone in particular; treat findings as evidence to verify.</p>`,
+        );
+      }
+
+      function tweetUrl(r, lp) {
+        const sym = "$" + (r.token.symbol || "TOKEN");
+        let t;
+        if (lp?.split) {
+          const c = lp.split.parts.find((p) => p.role === "Creator");
+          t = `I traced the fees on ${sym}: ${lp.split.feePct}% swap fee, creator gets ${c ? c.sharePct + "%" : "?"} of it.`;
+        } else if (r.recipients.length) {
+          t = `I traced the fees on ${sym}: ${r.recipients.length} wallets are taking a cut of every trade.`;
+        } else t = `I traced the fees on ${sym}: no hidden cuts found.`;
+        return (
+          "https://x.com/intent/tweet?text=" +
+          encodeURIComponent(t + " 👀 via @Feetracexyz") +
+          "&url=" +
+          encodeURIComponent(location.origin + "/?a=" + r.address)
+        );
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "feetrace",
+  "version": "0.1.0",
+  "description": "Trace where a token's fees actually go on Robinhood Chain",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "trace": "node cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "viem": "^2.57.7"
+  }
+}
